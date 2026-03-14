@@ -25,12 +25,15 @@ export type GovernanceModule = {
 export async function initGovernance(
   config: ClawmanGovernanceConfig | undefined,
 ): Promise<GovernanceModule | null> {
-  const cfg = config ?? {};
-  if (!cfg.enabled) {
+  if (!config) {
+    return null;
+  }
+  // If governance config exists, default to enabled unless explicitly disabled
+  if (config.enabled === false) {
     return null;
   }
 
-  let currentConfig = cfg;
+  let currentConfig = config;
 
   const mod: GovernanceModule = {
     config: currentConfig,
@@ -56,7 +59,18 @@ export async function initGovernance(
     },
   };
 
+  (globalThis as Record<string, unknown>)[GOVERNANCE_KEY] = mod;
   return mod;
+}
+
+// Use globalThis to survive bundler code-splitting across chunks
+const GOVERNANCE_KEY = "__clawman_governance__" as const;
+
+/** Get the active governance module (null if not initialized or disabled). */
+export function getGovernance(): GovernanceModule | null {
+  return (
+    ((globalThis as Record<string, unknown>)[GOVERNANCE_KEY] as GovernanceModule | null) ?? null
+  );
 }
 
 // Re-export key types and functions

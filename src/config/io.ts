@@ -1477,7 +1477,9 @@ export function loadConfig(): OpenClawConfig {
       return cached.config;
     }
   }
-  const config = io.loadConfig();
+  let config = io.loadConfig();
+  // Clawman: merge governance config from ~/.clawman/config/clawman.json5
+  config = mergeClawmanGovernanceConfigSync(config);
   if (shouldUseConfigCache(process.env)) {
     const cacheMs = resolveConfigCacheMs(process.env);
     if (cacheMs > 0) {
@@ -1513,10 +1515,12 @@ function mergeClawmanGovernanceConfig(snapshot: ConfigFileSnapshot): ConfigFileS
     }
     const raw = fs.readFileSync(clawmanConfigPath, "utf8");
     const parsed = JSON5.parse(raw);
-    if (parsed && typeof parsed === "object" && "governance" in parsed) {
+    if (parsed && typeof parsed === "object") {
+      // clawman.json5 content IS the governance config (not nested under a "governance" key)
+      const governanceConfig = "governance" in parsed ? parsed.governance : parsed;
       const merged: OpenClawConfig = {
         ...snapshot.config,
-        governance: parsed.governance,
+        governance: governanceConfig,
       };
       return { ...snapshot, config: merged };
     }
@@ -1524,6 +1528,28 @@ function mergeClawmanGovernanceConfig(snapshot: ConfigFileSnapshot): ConfigFileS
     // Ignore malformed clawman config; continue with default
   }
   return snapshot;
+}
+
+/**
+ * Sync version: merge governance config directly into an OpenClawConfig object.
+ * Used by the synchronous loadConfig() path.
+ */
+function mergeClawmanGovernanceConfigSync(config: OpenClawConfig): OpenClawConfig {
+  const clawmanConfigPath = path.join(os.homedir(), ".clawman", "config", "clawman.json5");
+  try {
+    if (!fs.existsSync(clawmanConfigPath)) {
+      return config;
+    }
+    const raw = fs.readFileSync(clawmanConfigPath, "utf8");
+    const parsed = JSON5.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      const governanceConfig = "governance" in parsed ? parsed.governance : parsed;
+      return { ...config, governance: governanceConfig };
+    }
+  } catch {
+    // Ignore malformed clawman config
+  }
+  return config;
 }
 
 export async function readConfigFileSnapshotForWrite(): Promise<ReadConfigFileSnapshotForWriteResult> {

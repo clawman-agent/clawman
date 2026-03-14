@@ -32,8 +32,8 @@ export function checkAgentAccess(
 
   // member role: check allowlist
   const resolved = resolveEffectivePolicy(member, config);
-  if (resolved.effectiveAgentAllowlist === null) {
-    // No allowlist = all agents allowed
+  if (resolved.effectiveAgentAllowlist === null || resolved.effectiveAgentAllowlist.includes("*")) {
+    // No allowlist or wildcard = all agents allowed
     return { allowed: true };
   }
 

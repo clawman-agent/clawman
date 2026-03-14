@@ -127,8 +127,11 @@ export type RunEmbeddedPiAgentParams = {
   allowTransientCooldownProbe?: boolean;
   /** Clawman governance context for access control and audit. */
   governance?: {
-    member: import("../../../governance/types.js").Member;
-    toolDenylist: string[];
-    config: import("../../../governance/types.js").ClawmanGovernanceConfig;
+    /** When true, governance is active but user is not a registered member — deny execution. */
+    denied?: boolean;
+    denyReason?: string;
+    member?: import("../../../governance/types.js").Member;
+    toolDenylist?: string[];
+    config?: import("../../../governance/types.js").ClawmanGovernanceConfig;
   };
 };

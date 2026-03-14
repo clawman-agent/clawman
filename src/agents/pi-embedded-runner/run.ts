@@ -5,7 +5,7 @@ import {
   ensureContextEnginesInitialized,
   resolveContextEngine,
 } from "../../context-engine/index.js";
-import { governanceGuard, recordGovernanceAudit } from "../../governance/middleware.js";
+import { recordGovernanceAudit } from "../../governance/middleware.js";
 import { computeBackoff, sleepWithAbort, type BackoffPolicy } from "../../infra/backoff.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
@@ -279,19 +279,47 @@ export async function runEmbeddedPiAgent(
 
       // Clawman governance: pre-execution access check
       if (params.governance) {
-        const guardResult = await governanceGuard({
-          channelType: params.messageChannel ?? "unknown",
-          channelUserId: params.senderId ?? "unknown",
-          agentId: params.agentId ?? "main",
-          config: params.governance.config,
-        });
-        if (!guardResult.allowed) {
+        // Unregistered user — deny immediately
+        if (params.governance.denied) {
           return {
             payloads: [
-              { text: guardResult.reason ?? "Access denied by governance policy", isError: true },
+              {
+                text: params.governance.denyReason ?? "Access denied by governance policy",
+                isError: true,
+              },
             ],
             meta: { durationMs: Date.now() - started },
           };
+        }
+        // Member is already resolved by agent-runner-execution; check access + budget
+        const member = params.governance.member;
+        if (member && params.governance.config) {
+          const { checkAgentAccess, checkBudget } = await import("../../governance/policy.js");
+          const agentId = params.agentId ?? "main";
+          const accessResult = checkAgentAccess(member, agentId, params.governance.config);
+          if (!accessResult.allowed) {
+            return {
+              payloads: [
+                {
+                  text: accessResult.reason ?? "Access denied by governance policy",
+                  isError: true,
+                },
+              ],
+              meta: { durationMs: Date.now() - started },
+            };
+          }
+          const budgetResult = await checkBudget(member, params.governance.config);
+          if (!budgetResult.allowed) {
+            return {
+              payloads: [
+                {
+                  text: `Monthly budget exceeded (used: $${budgetResult.used.toFixed(2)}, limit: $${budgetResult.limit?.toFixed(2)})`,
+                  isError: true,
+                },
+              ],
+              meta: { durationMs: Date.now() - started },
+            };
+          }
         }
       }
 

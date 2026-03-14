@@ -22,6 +22,7 @@ import {
   updateSessionStore,
 } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
+import { getGovernance } from "../../governance/index.js";
 import { emitAgentEvent, registerAgentRunContext } from "../../infra/agent-events.js";
 import { defaultRuntime } from "../../runtime.js";
 import {
@@ -329,7 +330,15 @@ export async function runAgentTurnWithFallback(params: {
               ...senderContext,
               ...runBaseParams,
               prompt: params.commandBody,
-              extraSystemPrompt: params.followupRun.run.extraSystemPrompt,
+              extraSystemPrompt: (() => {
+                const base = params.followupRun.run.extraSystemPrompt ?? "";
+                const gov = getGovernance();
+                if (!gov) {
+                  return base || undefined;
+                }
+                const hint = `\n\n## Clawman Governance\n\nYou are running under Clawman governance. You have a "governance" tool available.\n\nWhen the user asks about members, audit logs, usage, or anything related to team/organization management, use the governance tool:\n- "members.list" — list all registered members\n- "members.add" — add a new member (needs: name, role; optional: member_id, channel_type, channel_user_id, monthly_budget)\n- "members.update" — update a member (needs: member_id)\n- "members.remove" — remove a member (needs: member_id)\n- "audit.query" — query audit logs\n- "usage.summary" — get usage statistics\n\nKeywords that should trigger the governance tool: 成员, member, 审计, audit, 用量, usage, 权限, permission, 添加用户, add user, 删除用户, remove user.\n\nOnly admin members can manage other members.`;
+                return (base + hint).trim() || undefined;
+              })(),
               toolResultFormat: (() => {
                 const channel = resolveMessageChannel(
                   params.sessionCtx.Surface,
@@ -431,6 +440,34 @@ export async function runAgentTurnWithFallback(params: {
                 bootstrapPromptWarningSignaturesSeen[
                   bootstrapPromptWarningSignaturesSeen.length - 1
                 ],
+              // Clawman governance: resolve member and inject access control context
+              governance: await (async () => {
+                const gov = getGovernance();
+                if (!gov) {
+                  return undefined;
+                }
+                const channelType = (
+                  params.sessionCtx.Surface ??
+                  params.sessionCtx.Provider ??
+                  ""
+                ).toLowerCase();
+                const channelUserId = params.sessionCtx.SenderId?.trim() ?? "";
+                if (!channelType || !channelUserId) {
+                  return { denied: true, denyReason: "Unable to identify channel or user" };
+                }
+                const member = await gov.resolveMember(channelType, channelUserId);
+                if (!member) {
+                  return {
+                    denied: true,
+                    denyReason: `You are not a registered member (${channelType}:${channelUserId}). Contact an admin to get access.`,
+                  };
+                }
+                return {
+                  member,
+                  toolDenylist: gov.getToolDenylist(member),
+                  config: gov.config,
+                };
+              })(),
               onToolResult: onToolResult
                 ? (() => {
                     // Serialize tool result delivery to preserve message ordering.

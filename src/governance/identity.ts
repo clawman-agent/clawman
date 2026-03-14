@@ -45,8 +45,11 @@ export function resolveEffectivePolicy(
   const memberTools = member.toolDenylist ?? [];
   const effectiveToolDenylist = [...new Set([...roleTools, ...memberTools])];
 
-  // Agent allowlist: member override takes precedence, then role-level, then null (all allowed)
-  const effectiveAgentAllowlist = member.agentAllowlist ?? rolePolicy?.agentAllowlist ?? null;
+  // Agent allowlist: member override takes precedence (if non-empty), then role-level, then null (all allowed)
+  // Treat empty array as "not set" so role-level defaults apply
+  const memberAllowlist = member.agentAllowlist?.length ? member.agentAllowlist : undefined;
+  const roleAllowlist = rolePolicy?.agentAllowlist;
+  const effectiveAgentAllowlist = memberAllowlist ?? roleAllowlist ?? null;
 
   // Budget: member override takes precedence, then role-level
   const effectiveBudget = member.monthlyBudget ?? rolePolicy?.monthlyBudget ?? null;
