@@ -1,6 +1,8 @@
 // Clawman Governance — Module entry point
 
+import { callGateway } from "../gateway/call.js";
 import type { GatewayRequestHandlers } from "../gateway/server-methods/types.js";
+import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
 import { resolveMember } from "./identity.js";
 import { governanceGuard, recordGovernanceAudit } from "./middleware.js";
 import { getEffectiveToolDenylist } from "./policy.js";
@@ -40,7 +42,7 @@ export async function initGovernance(
     config: currentConfig,
 
     resolveMember: async (channelType: string, channelUserId: string) => {
-      const members = await loadMembers();
+      const members = await loadMembersWithFallback(currentConfig);
       return resolveMember(channelType, channelUserId, members);
     },
 
@@ -53,8 +55,28 @@ export async function initGovernance(
     },
 
     buildSystemPrompt: async (currentMember?: Member | null) => {
-      const members = await loadMembers();
-      return buildGovernanceSystemPrompt(currentConfig, members, currentMember);
+      let members: Member[];
+      let config = currentConfig;
+      const cp = currentConfig.controlPlane;
+      if (cp) {
+        // Fetch members and config from control plane
+        try {
+          const result = await callGateway<{ members: Member[] }>({
+            url: cp.url,
+            token: cp.token,
+            method: "governance.members.list",
+            timeoutMs: 5000,
+            clientName: GATEWAY_CLIENT_NAMES.GATEWAY_CLIENT,
+            mode: GATEWAY_CLIENT_MODES.CLI,
+          });
+          members = result.members ?? [];
+        } catch {
+          members = await loadMembers(); // fallback to local
+        }
+      } else {
+        members = await loadMembers();
+      }
+      return buildGovernanceSystemPrompt(config, members, currentMember);
     },
 
     wsHandlers: createGovernanceWsHandlers(() => currentConfig),
@@ -67,6 +89,29 @@ export async function initGovernance(
 
   (globalThis as Record<string, unknown>)[GOVERNANCE_KEY] = mod;
   return mod;
+}
+
+/**
+ * Load members from control plane if configured, otherwise from local store.
+ */
+async function loadMembersWithFallback(config: ClawmanGovernanceConfig): Promise<Member[]> {
+  const cp = config.controlPlane;
+  if (cp) {
+    try {
+      const result = await callGateway<{ members: Member[] }>({
+        url: cp.url,
+        token: cp.token,
+        method: "governance.members.list",
+        timeoutMs: 5000,
+        clientName: GATEWAY_CLIENT_NAMES.GATEWAY_CLIENT,
+        mode: GATEWAY_CLIENT_MODES.CLI,
+      });
+      return result.members ?? [];
+    } catch {
+      // Fallback to local
+    }
+  }
+  return loadMembers();
 }
 
 // Use globalThis to survive bundler code-splitting across chunks

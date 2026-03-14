@@ -1,6 +1,7 @@
 // Clawman Governance Tool — lets admins manage members via chat
 
 import { Type } from "@sinclair/typebox";
+import { getGovernance } from "../../governance/index.js";
 import { stringEnum } from "../schema/typebox.js";
 import {
   type AnyAgentTool,
@@ -71,7 +72,12 @@ Only admins can use this tool.`,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
       const action = readStringParam(params, "action", { required: true });
-      const gateway = readGatewayCallOptions(opts);
+      // Route to control plane if configured, otherwise use local gateway
+      const gov = getGovernance();
+      const cp = gov?.config.controlPlane;
+      const gateway: GatewayCallOptions = cp
+        ? { gatewayUrl: cp.url, gatewayToken: cp.token }
+        : readGatewayCallOptions(opts);
 
       switch (action) {
         case "members.list": {

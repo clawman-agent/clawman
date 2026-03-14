@@ -104,6 +104,11 @@ export type ClawmanGovernanceConfig = {
   };
   nodes?: ExecutionNode[];
   agents?: GovernanceAgentConfig[];
+  /** Control plane configuration. When set, governance data is fetched from the central gateway. */
+  controlPlane?: {
+    url: string;
+    token: string;
+  };
 };
 
 /** Result of a policy check. */
