@@ -330,14 +330,25 @@ export async function runAgentTurnWithFallback(params: {
               ...senderContext,
               ...runBaseParams,
               prompt: params.commandBody,
-              extraSystemPrompt: (() => {
+              extraSystemPrompt: await (async () => {
                 const base = params.followupRun.run.extraSystemPrompt ?? "";
                 const gov = getGovernance();
                 if (!gov) {
                   return base || undefined;
                 }
-                const hint = `\n\n## Clawman Governance\n\nYou are running under Clawman governance. You have a "governance" tool available.\n\nWhen the user asks about members, audit logs, usage, or anything related to team/organization management, use the governance tool:\n- "members.list" — list all registered members\n- "members.add" — add a new member (needs: name, role; optional: member_id, channel_type, channel_user_id, monthly_budget)\n- "members.update" — update a member (needs: member_id)\n- "members.remove" — remove a member (needs: member_id)\n- "audit.query" — query audit logs\n- "usage.summary" — get usage statistics\n\nKeywords that should trigger the governance tool: 成员, member, 审计, audit, 用量, usage, 权限, permission, 添加用户, add user, 删除用户, remove user.\n\nOnly admin members can manage other members.`;
-                return (base + hint).trim() || undefined;
+                // Resolve current member for context-aware prompt
+                const channelType = (
+                  params.sessionCtx.Surface ??
+                  params.sessionCtx.Provider ??
+                  ""
+                ).toLowerCase();
+                const channelUserId = params.sessionCtx.SenderId?.trim() ?? "";
+                let currentMember = null;
+                if (channelType && channelUserId) {
+                  currentMember = await gov.resolveMember(channelType, channelUserId);
+                }
+                const govPrompt = await gov.buildSystemPrompt(currentMember);
+                return (base + "\n\n" + govPrompt).trim() || undefined;
               })(),
               toolResultFormat: (() => {
                 const channel = resolveMessageChannel(
