@@ -1497,7 +1497,33 @@ export async function readBestEffortConfig(): Promise<OpenClawConfig> {
 }
 
 export async function readConfigFileSnapshot(): Promise<ConfigFileSnapshot> {
-  return await createConfigIO().readConfigFileSnapshot();
+  const snapshot = await createConfigIO().readConfigFileSnapshot();
+  return mergeClawmanGovernanceConfig(snapshot);
+}
+
+/**
+ * Merge governance config from ~/.clawman/config/clawman.json5 into the snapshot.
+ * Keeps OpenClaw config untouched; governance block is additive only.
+ */
+function mergeClawmanGovernanceConfig(snapshot: ConfigFileSnapshot): ConfigFileSnapshot {
+  const clawmanConfigPath = path.join(os.homedir(), ".clawman", "config", "clawman.json5");
+  try {
+    if (!fs.existsSync(clawmanConfigPath)) {
+      return snapshot;
+    }
+    const raw = fs.readFileSync(clawmanConfigPath, "utf8");
+    const parsed = JSON5.parse(raw);
+    if (parsed && typeof parsed === "object" && "governance" in parsed) {
+      const merged: OpenClawConfig = {
+        ...snapshot.config,
+        governance: parsed.governance,
+      };
+      return { ...snapshot, config: merged };
+    }
+  } catch {
+    // Ignore malformed clawman config; continue with default
+  }
+  return snapshot;
 }
 
 export async function readConfigFileSnapshotForWrite(): Promise<ReadConfigFileSnapshotForWriteResult> {

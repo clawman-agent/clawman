@@ -13,6 +13,7 @@ import type {
   GatewayConfig,
   TalkConfig,
 } from "./types.gateway.js";
+import type { ClawmanGovernanceConfig } from "./types.governance.js";
 import type { HooksConfig } from "./types.hooks.js";
 import type { MemoryConfig } from "./types.memory.js";
 import type {
@@ -120,6 +121,8 @@ export type OpenClawConfig = {
   talk?: TalkConfig;
   gateway?: GatewayConfig;
   memory?: MemoryConfig;
+  /** Clawman governance configuration (multi-member, multi-agent control plane). */
+  governance?: ClawmanGovernanceConfig;
 };
 
 export type ConfigValidationIssue = {

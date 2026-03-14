@@ -21,6 +21,7 @@ import {
 import { formatConfigIssueLines } from "../config/issue-format.js";
 import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import { resolveMainSessionKey } from "../config/sessions.js";
+import { initGovernance } from "../governance/index.js";
 import { clearAgentRunContext, onAgentEvent } from "../infra/agent-events.js";
 import {
   ensureControlUiAssetsBuilt,
@@ -464,6 +465,13 @@ export async function startGatewayServer(
   });
 
   initSubagentRegistry();
+
+  // Clawman governance module initialization
+  const governance = await initGovernance(cfgAtStart.governance);
+  if (governance) {
+    log.info("gateway: governance module enabled");
+  }
+
   const defaultAgentId = resolveDefaultAgentId(cfgAtStart);
   const defaultWorkspaceDir = resolveAgentWorkspaceDir(cfgAtStart, defaultAgentId);
   const baseMethods = listGatewayMethods();
@@ -890,6 +898,7 @@ export async function startGatewayServer(
       ...pluginRegistry.gatewayHandlers,
       ...execApprovalHandlers,
       ...secretsHandlers,
+      ...governance?.wsHandlers,
     },
     broadcast,
     context: gatewayRequestContext,
@@ -988,6 +997,10 @@ export async function startGatewayServer(
           initialConfig: cfgAtStart,
           readSnapshot: readConfigFileSnapshot,
           onHotReload: async (plan, nextConfig) => {
+            // Clawman: reload governance config on hot-reload
+            if (governance && nextConfig.governance) {
+              governance.reload(nextConfig.governance);
+            }
             const previousSnapshot = getActiveSecretsRuntimeSnapshot();
             const prepared = await activateRuntimeSecrets(nextConfig, {
               reason: "reload",

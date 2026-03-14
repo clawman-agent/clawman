@@ -1,0 +1,54 @@
+// Clawman Governance Configuration Example
+// Place at ~/.clawman/config/clawman.json5
+{
+  governance: {
+    enabled: true,
+    organization: {
+      name: "My Organization",
+    },
+    roles: {
+      admin: {
+        // Admins have full access, no restrictions
+        monthlyBudget: null,
+      },
+      member: {
+        toolDenylist: ["bash", "computer"],
+        agentAllowlist: ["main", "researcher"],
+        monthlyBudget: 50,
+      },
+      viewer: {
+        // Viewers cannot run agents (enforced by policy engine)
+        monthlyBudget: 0,
+      },
+    },
+    audit: {
+      enabled: true,
+      retentionDays: 90,
+    },
+    memory: {
+      defaultScope: "personal",
+    },
+    nodes: [
+      {
+        id: "gcp-control",
+        name: "GCP Control Plane",
+        endpoint: "local",
+        agentIds: ["main", "researcher"],
+        tags: ["control-plane"],
+      },
+      {
+        id: "mac-mini",
+        name: "Mac Mini Worker",
+        endpoint: "wss://mac-mini.tailnet:18789",
+        agentIds: ["browser-agent", "video-agent"],
+        tags: ["browser", "video", "gpu"],
+      },
+    ],
+    agents: [
+      { id: "main", nodeId: "gcp-control", label: "Main Agent" },
+      { id: "researcher", nodeId: "gcp-control", label: "Researcher" },
+      { id: "browser-agent", nodeId: "mac-mini", label: "Browser Agent" },
+      { id: "video-agent", nodeId: "mac-mini", label: "Video Agent" },
+    ],
+  },
+}

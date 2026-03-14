@@ -125,4 +125,10 @@ export type RunEmbeddedPiAgentParams = {
    * where transient service pressure is often model-scoped.
    */
   allowTransientCooldownProbe?: boolean;
+  /** Clawman governance context for access control and audit. */
+  governance?: {
+    member: import("../../../governance/types.js").Member;
+    toolDenylist: string[];
+    config: import("../../../governance/types.js").ClawmanGovernanceConfig;
+  };
 };

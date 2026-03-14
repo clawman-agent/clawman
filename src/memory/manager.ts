@@ -136,13 +136,31 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     cfg: OpenClawConfig;
     agentId: string;
     purpose?: "default" | "status";
+    /** Clawman governance scope for memory isolation. */
+    governanceScope?: {
+      memberId?: string;
+      orgId?: string;
+      scope: "personal" | "org";
+    };
   }): Promise<MemoryIndexManager | null> {
     const { cfg, agentId } = params;
     const settings = resolveMemorySearchConfig(cfg, agentId);
     if (!settings) {
       return null;
     }
-    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    let workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+
+    // Clawman: override workspace dir for governance-scoped memory isolation
+    if (params.governanceScope) {
+      const os = await import("node:os");
+      const clawmanMemoryBase = path.join(os.default.homedir(), ".clawman", "memory");
+      if (params.governanceScope.scope === "personal" && params.governanceScope.memberId) {
+        workspaceDir = path.join(clawmanMemoryBase, "personal", params.governanceScope.memberId);
+      } else {
+        workspaceDir = path.join(clawmanMemoryBase, "org");
+      }
+    }
+
     const key = `${agentId}:${workspaceDir}:${JSON.stringify(settings)}`;
     const existing = INDEX_CACHE.get(key);
     if (existing) {

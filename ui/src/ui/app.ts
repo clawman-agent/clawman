@@ -176,6 +176,20 @@ export class OpenClawApp extends LitElement {
 
   @state() nodesLoading = false;
   @state() nodes: Array<Record<string, unknown>> = [];
+
+  // Clawman governance state
+  @state() governanceMembersLoading = false;
+  @state() governanceMembersError: string | null = null;
+  @state() governanceMembers: Array<Record<string, unknown>> = [];
+  @state() governanceAuditLoading = false;
+  @state() governanceAuditError: string | null = null;
+  @state() governanceAuditEntries: Array<Record<string, unknown>> = [];
+  @state() governanceUsageLoading = false;
+  @state() governanceUsageError: string | null = null;
+  @state() governanceUsage: Record<string, unknown> = {};
+  @state() governanceNodesLoading = false;
+  @state() governanceNodesError: string | null = null;
+  @state() governanceNodes: Array<Record<string, unknown>> = [];
   @state() devicesLoading = false;
   @state() devicesError: string | null = null;
   @state() devicesList: DevicePairingList | null = null;

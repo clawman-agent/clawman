@@ -127,6 +127,7 @@ const lazyLogs = createLazy(() => import("./views/logs.ts"));
 const lazyNodes = createLazy(() => import("./views/nodes.ts"));
 const lazySessions = createLazy(() => import("./views/sessions.ts"));
 const lazySkills = createLazy(() => import("./views/skills.ts"));
+const lazyGovernance = createLazy(() => import("./views/governance.ts"));
 
 function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
@@ -1235,6 +1236,69 @@ export function renderApp(state: AppViewState) {
                   onSaveKey: (key) => saveSkillApiKey(state, key),
                   onInstall: (skillKey, name, installId) =>
                     installSkill(state, skillKey, name, installId),
+                }),
+              )
+            : nothing
+        }
+
+        ${
+          state.tab === "governance"
+            ? lazyRender(lazyGovernance, (m) =>
+                m.renderGovernance({
+                  membersLoading: state.governanceMembersLoading,
+                  membersError: state.governanceMembersError,
+                  members: state.governanceMembers as ReturnType<
+                    typeof m.renderGovernance
+                  > extends never
+                    ? never
+                    : Parameters<typeof m.renderGovernance>[0]["members"],
+                  auditLoading: state.governanceAuditLoading,
+                  auditError: state.governanceAuditError,
+                  auditEntries: state.governanceAuditEntries as Parameters<
+                    typeof m.renderGovernance
+                  >[0]["auditEntries"],
+                  usageLoading: state.governanceUsageLoading,
+                  usageError: state.governanceUsageError,
+                  usage: state.governanceUsage as Parameters<typeof m.renderGovernance>[0]["usage"],
+                  nodesLoading: state.governanceNodesLoading,
+                  nodesError: state.governanceNodesError,
+                  nodes: state.governanceNodes as Parameters<typeof m.renderGovernance>[0]["nodes"],
+                  onRefreshMembers: () => {
+                    void import("./controllers/governance.ts").then((g) =>
+                      g.loadGovernanceMembers(
+                        state as unknown as Parameters<typeof g.loadGovernanceMembers>[0],
+                      ),
+                    );
+                  },
+                  onRefreshAudit: () => {
+                    void import("./controllers/governance.ts").then((g) =>
+                      g.loadGovernanceAudit(
+                        state as unknown as Parameters<typeof g.loadGovernanceAudit>[0],
+                      ),
+                    );
+                  },
+                  onRefreshUsage: () => {
+                    void import("./controllers/governance.ts").then((g) =>
+                      g.loadGovernanceUsage(
+                        state as unknown as Parameters<typeof g.loadGovernanceUsage>[0],
+                      ),
+                    );
+                  },
+                  onRefreshNodes: () => {
+                    void import("./controllers/governance.ts").then((g) =>
+                      g.loadGovernanceNodes(
+                        state as unknown as Parameters<typeof g.loadGovernanceNodes>[0],
+                      ),
+                    );
+                  },
+                  onRemoveMember: (id: string) => {
+                    void import("./controllers/governance.ts").then((g) =>
+                      g.removeGovernanceMember(
+                        state as unknown as Parameters<typeof g.removeGovernanceMember>[0],
+                        id,
+                      ),
+                    );
+                  },
                 }),
               )
             : nothing

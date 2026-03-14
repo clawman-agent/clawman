@@ -215,6 +215,19 @@ const coreEntries: CoreCliEntry[] = [
       mod.registerBrowserCli(program);
     },
   },
+  {
+    commands: [
+      {
+        name: "governance",
+        description: "Clawman governance: manage members, nodes, and policies",
+        hasSubcommands: true,
+      },
+    ],
+    register: async ({ program }) => {
+      const mod = await import("../../governance/cli.js");
+      mod.registerGovernanceCli(program);
+    },
+  },
 ];
 
 function collectCoreCliCommandNames(predicate?: (command: CoreCliCommandDescriptor) => boolean) {

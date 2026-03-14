@@ -492,3 +492,31 @@ export async function authorizeWsControlUiGatewayConnect(
     authSurface: "ws-control-ui",
   });
 }
+
+/**
+ * Clawman: enrich a GatewayAuthResult with a resolved governance member.
+ * This is a post-auth step that does not modify the existing auth flow.
+ */
+export type EnrichedAuthResult = GatewayAuthResult & {
+  governanceMember?: import("../governance/types.js").Member;
+};
+
+export async function enrichAuthWithMember(
+  authResult: GatewayAuthResult,
+  governance: import("../governance/index.js").GovernanceModule | null | undefined,
+  connectParams?: { channelType?: string; channelUserId?: string } | null,
+): Promise<EnrichedAuthResult> {
+  if (!governance || !connectParams?.channelType || !connectParams?.channelUserId) {
+    return authResult;
+  }
+
+  const member = await governance.resolveMember(
+    connectParams.channelType,
+    connectParams.channelUserId,
+  );
+
+  return {
+    ...authResult,
+    governanceMember: member ?? undefined,
+  };
+}

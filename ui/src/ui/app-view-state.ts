@@ -78,6 +78,19 @@ export type AppViewState = {
   chatManualRefreshInFlight: boolean;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
+  // Clawman governance
+  governanceMembersLoading: boolean;
+  governanceMembersError: string | null;
+  governanceMembers: Array<Record<string, unknown>>;
+  governanceAuditLoading: boolean;
+  governanceAuditError: string | null;
+  governanceAuditEntries: Array<Record<string, unknown>>;
+  governanceUsageLoading: boolean;
+  governanceUsageError: string | null;
+  governanceUsage: Record<string, unknown>;
+  governanceNodesLoading: boolean;
+  governanceNodesError: string | null;
+  governanceNodes: Array<Record<string, unknown>>;
   chatNewMessagesBelow: boolean;
   navDrawerOpen: boolean;
   sidebarOpen: boolean;

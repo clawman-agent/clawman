@@ -5,6 +5,7 @@ import {
   ensureContextEnginesInitialized,
   resolveContextEngine,
 } from "../../context-engine/index.js";
+import { governanceGuard, recordGovernanceAudit } from "../../governance/middleware.js";
 import { computeBackoff, sleepWithAbort, type BackoffPolicy } from "../../infra/backoff.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
@@ -275,6 +276,25 @@ export async function runEmbeddedPiAgent(
   return enqueueSession(() =>
     enqueueGlobal(async () => {
       const started = Date.now();
+
+      // Clawman governance: pre-execution access check
+      if (params.governance) {
+        const guardResult = await governanceGuard({
+          channelType: params.messageChannel ?? "unknown",
+          channelUserId: params.senderId ?? "unknown",
+          agentId: params.agentId ?? "main",
+          config: params.governance.config,
+        });
+        if (!guardResult.allowed) {
+          return {
+            payloads: [
+              { text: guardResult.reason ?? "Access denied by governance policy", isError: true },
+            ],
+            meta: { durationMs: Date.now() - started },
+          };
+        }
+      }
+
       const workspaceResolution = resolveRunWorkspaceDir({
         workspaceDir: params.workspaceDir,
         sessionKey: params.sessionKey,
@@ -1564,6 +1584,19 @@ export async function runEmbeddedPiAgent(
               agentDir: params.agentDir,
             });
           }
+          // Clawman governance: post-execution audit
+          if (params.governance?.member) {
+            const durationMs = Date.now() - started;
+            recordGovernanceAudit({
+              member: params.governance.member,
+              action: "agent.run.completed",
+              agentId: params.agentId,
+              channel: params.messageChannel,
+              durationMs,
+              tokenCount: agentMeta?.usage?.total,
+            }).catch(() => {});
+          }
+
           return {
             payloads: payloads.length ? payloads : undefined,
             meta: {
