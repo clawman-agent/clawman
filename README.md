@@ -2,8 +2,6 @@
 
 Enterprise multi-member, multi-agent governance control plane. Built as an [OpenClaw](https://github.com/openclaw/openclaw) fork with minimal upstream invasion (~150 lines modified) and ~1,500 lines of new governance modules.
 
-> **Status: Alpha** — Running in production for [Fooo](https://fooo.ooo)'s 100-day product challenge.
-
 ## What It Does
 
 Clawman adds an organizational governance layer on top of OpenClaw's agent infrastructure:
