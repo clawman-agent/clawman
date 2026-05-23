@@ -1,7 +1,7 @@
 # Clawman Control Plane — Docker image
 # Usage: gcloud builds submit --config cloudbuild.yaml .
 
-FROM node:22-slim AS base
+FROM node:26-slim AS base
 WORKDIR /app
 
 # Install pnpm
@@ -14,7 +14,7 @@ COPY . .
 RUN pnpm install --no-frozen-lockfile && pnpm build
 
 # Runtime stage
-FROM node:22-slim AS runtime
+FROM node:26-slim AS runtime
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
